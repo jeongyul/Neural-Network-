@@ -1,12 +1,14 @@
+# *- coding: utf-8 -*-
 #######################################################
 # Author: Jeongyun Lee
-# Dat: 10/30/2020
-# Description: Labeling images of handwritten letters by implementing a Neural Network from scratch. Implemented all of the functions needed to initialize, train, evaluate, and make predictions with the network.
- ######################################################
+# Date: 10/30/2020
+# Description: Label images of handwritten letters by implementing a Neural Network from scratch. Implemented all of the functions needed to initialize, train, evaluate, and make predictions with the network. Datasets We will be using a subset of an Optical Character Recognition (OCR) dataset. This data includes images of all 26 handwritten letters; for this assignment specifically, subset will include only the letters “a,” “e,” “g,” “i,” “l,” “n,” “o,” “r,” “t,” and “u.” 
+######################################################
 
 import numpy as np
 import sys
 
+#format data set
 def splitData(filename):
     data = np.genfromtxt(filename, delimiter=',').astype(int)
     xS = data[:, 1:]
@@ -16,6 +18,7 @@ def splitData(filename):
     yHot = np.eye(10)[yS]
     return yS, yHot, x
 
+#initialize alpha: if intFlag given by command line is 1, randomly create, otherwise set it to zeros
 def initAlpha(x, y):
     D = hidden
     M = x.shape[1] - 1
@@ -29,6 +32,7 @@ def initAlpha(x, y):
         alpha = np.zeros((D, M + 1))
     return alpha
 
+#initialize beta: if intFlag given by command line is 1, randomly create, otherwise set it to zeros
 def initBeta(x, y):
     K = 10
     D = hidden
@@ -51,6 +55,7 @@ def softmax(x):
 def J(y,yHat):
     return -np.dot(y,np.log(yHat))
 
+#forward propagation
 def NNForward(x, y, alpha, beta):
     a = np.dot(alpha, x)
     zS = sigmoid(a)
@@ -61,6 +66,7 @@ def NNForward(x, y, alpha, beta):
     obj = (a, zS, z, b, yHat, loss)
     return obj
 
+#backward propagation
 def NNBackward(x, y, alpha, beta, obj):
     a, zS, z, b, yHat, loss = obj
     gB = yHat - y
@@ -70,6 +76,7 @@ def NNBackward(x, y, alpha, beta, obj):
     gAlpha = np.dot(x, gA.T).T
     return gAlpha, gBeta
 
+#Updating alpha and beta matrices using gradient decent
 def SGD(x, y, alpha, beta):
     obj = NNForward(x, y, alpha, beta)
     gAlpha, gBeta = NNBackward(x, y, alpha, beta, obj)
@@ -115,9 +122,6 @@ def writeError(file, trainE, testE):
     with open(file, 'w') as fd:
         fd.write('error(train): %f\n' % trainE)
         fd.write('error(test): %f' % testE)
-        print('error(train): %f' % trainE)
-        print('error(test): %f' % testE)
-
 
 def writeLabel(file, labels):
     with open(file, 'w') as fd:
@@ -128,11 +132,7 @@ def writeCross(file, epoch, trainL, testL):
     with open(file, 'w') as fd:
         fd.write('epoch=%d crossentropy(train) : %f\n' % (epoch + 1, trainL))
         fd.write('epoch=%d crossentropy(test) : %f\n' % (epoch + 1, testL))
-        print('epoch=%d crossentropy(train) : %f\n' % (epoch + 1, trainL))
-        print('epoch=%d crossentropy(test) : %f\n' % (epoch + 1, testL))
     
-    
-
 if __name__ == "__main__":
     train_input = sys.argv[1]
     test_input = sys.argv[2]
@@ -143,45 +143,28 @@ if __name__ == "__main__":
     hidden = sys.argv[7]
     int_flag = sys.argv[8]
     learning_rate = sys.argv[9]
-
-    #Defining initial alpha and beta 
-    #Helper function for getting the M, D, K value 
     epochNum = int(num_epoch)
     hidden = int(hidden)
     intFlag = int(int_flag)
     learnR = float(learning_rate)
 
+    #Format the dataset and alpha/beta matrix
     train, trainY, trainX = splitData(train_input)
     test, testY, testX = splitData(test_input)
     alpha = initAlpha(trainX, trainY)
     beta = initBeta(trainX, trainY)
+
+    #train and calculate loss
     for epoch in range(epochNum):
-        trainLen = trainX.shape[0]
         #update alpha, beta
-        for i in range(trainLen):
+        for i in range(trainX.shape[0]):
             xElem = trainX[i, :].reshape(-1,1)
             yElem = trainY[i, :].reshape(-1,1)
             alpha, beta = SGD(xElem, yElem, alpha, beta)
-        lossResult  = []
-        #calculate train loss
-        for i in range(trainLen):  
-            xElem = trainX[i, :].reshape(-1, 1)
-            yElem = trainY[i, :].reshape(-1, 1)
-            obj = NNForward(xElem, yElem, alpha, beta)
-            a, zS, z, b, yHat, l = obj
-            lossResult.append(l)
-        trainL = np.mean(lossResult)
-        testLen = testX.shape[0]
-        lossResult  = []
-        #calculate test loss
-        for i in range(testLen):  
-            xElem = testX[i, :].reshape(-1, 1)
-            yElem = testY[i, :].reshape(-1, 1)
-            obj = NNForward(xElem, yElem, alpha, beta)
-            a, zS, z, b, yHat, l = obj
-            lossResult.append(l)
-        testL = np.mean(lossResult)
-        print(trainL, testL)
+        #calculate train and test loss
+        trainL = loss(trainX, trainY, alpha, beta)
+        testL = loss(testX, testY, alpha, beta)
+        #write cross entropy for each epoch to metrics file
         writeCross(metrics, epoch, trainL, testL)
     #make predictions
     trainHat = predict(trainX, trainY, alpha, beta)
@@ -190,6 +173,6 @@ if __name__ == "__main__":
     trainE = error(trainHat, train)
     testE = error(testHat, test)
     writeError(metrics, trainE, testE)
-    
+    #write labels 
     writeLabel(train_out, trainHat)
     writeLabel(test_out, testHat)
